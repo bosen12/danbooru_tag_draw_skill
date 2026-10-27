@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+mochi-runs/
+.skill-test-*/
+.fixtures/

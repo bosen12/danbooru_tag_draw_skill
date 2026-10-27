@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mochi · 墨池抽牌生圖"
+  short_description: "Draw tags with Mochi, generate images, and resume jobs"
+  default_prompt: "Use $danbooru-draw to turn my scene into Mochi tags, then generate and show the image."
