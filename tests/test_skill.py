@@ -252,6 +252,41 @@ class SkillTests(unittest.TestCase):
         self.assertIn("hanfu", out["pinned"])
         self.assertIn("skyscraper", out["pinned"])
 
+    def test_banned_character_and_minor_never_reach_prompt(self):
+        if not (ENGINE_ROOT / "web" / "engine.js").exists():
+            self.skipTest("Set DTR_ROOT to run the real-engine integration test")
+        for spec in ({"pins": ["hatsune_miku"]}, {"extra": ["(rem (re:zero):1.2)"]}, {"extra": ["loli"]}):
+            p = self.draw(spec)
+            self.assertNotEqual(p.returncode, 0, p.stdout)
+            out = json.loads(p.stdout)
+            self.assertFalse(out["ok"])
+            self.assertIn("禁用角色", out["error"])
+        p, out = self.cli({"pins": ["hatsune miku"]}, "--root", str(ENGINE_ROOT))
+        self.assertNotEqual(p.returncode, 0)
+        self.assertEqual(self.http.posts, [])
+        s = subprocess.run(["node", str(DRAW), "search", "hatsune_miku", "beach"], text=True, encoding="utf-8",
+                           capture_output=True, env={**os.environ, "DTR_ROOT": str(ENGINE_ROOT)}, timeout=30)
+        res = json.loads(s.stdout)["results"]
+        self.assertIn("禁用角色", res["hatsune_miku"]["blocked"])
+        self.assertTrue(res["beach"])
+
+    def test_weights_are_kept_and_clamped(self):
+        if not (ENGINE_ROOT / "web" / "engine.js").exists():
+            self.skipTest("Set DTR_ROOT to run the real-engine integration test")
+        p = self.draw({"pins": ["(beach:1.3)", "smile"], "weights": {"smile": 2}, "drawSeed": 7})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        out = json.loads(p.stdout)
+        tags = out["results"][0]["positive"].split(", ")
+        self.assertIn("(beach:1.3)", tags)
+        self.assertIn("(smile:1.5)", tags)
+        self.assertIn("beach", out["pinned"])
+        self.assertEqual(out["notInLexicon"], [])
+
+    def test_generation_is_marked_as_ai(self):
+        p, out = self.cli({"positive": "1girl, adult, beach"})
+        self.assertEqual(p.returncode, 0, out)
+        self.assertEqual(self.http.posts[-1]["origin"], "mcp")
+
 
 if __name__ == "__main__":
     unittest.main()

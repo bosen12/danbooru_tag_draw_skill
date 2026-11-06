@@ -9,6 +9,10 @@ const out = value => process.stdout.write(JSON.stringify(value, null, 2) + '\n')
 const normalize = tag => tag.trim().replaceAll('_', ' ');
 const sections = ['subject', 'feature', 'pose', 'clothing', 'env'];
 const defaultCounts = { subject: 2, feature: 5, pose: 4, clothing: 3, env: 4 };
+// 未成年的字一律不出（跟墨池 MCP 同一條）。禁用角色（詞庫的 characterBan，多半年齡不明）另外在 main 裡擋：
+// 以前詞庫找不到的字會當 extra 接進提示詞，禁用角色就從這裡進到提示詞（墨池生圖時會拒絕，但抽出來的提示詞已經有它）。
+const MINOR_RE =
+  /\b(loli|lolicon|shota|shotacon|child|children|kid|kids|toddler|baby|infant|underage|minor|preteen|young(?:er)?\s+(?:girl|boy)|little\s+(?:girl|boy|sister|brother)|elementary\s+school|middle\s+school|kindergarten|aged\s+down|age\s+regression)\b|蘿莉|萝莉|正太|幼女|幼童|兒童|儿童|小孩|孩童|未成年|小學生|小学生|國中生|初中生/i;
 
 function projectRoot() {
   const explicit = process.env.DTR_ROOT || process.env.MOCHI_ROOT;
@@ -36,7 +40,7 @@ function readSpec(args) {
     if (spec[key] !== undefined && (!Array.isArray(spec[key]) || spec[key].some(v => typeof v !== 'string')))
       throw Error(`${key} 必須是字串陣列`);
   }
-  for (const key of ['counts', 'focus', 'mustDraw']) {
+  for (const key of ['counts', 'focus', 'mustDraw', 'weights']) {
     if (spec[key] !== undefined && (!spec[key] || typeof spec[key] !== 'object' || Array.isArray(spec[key])))
       throw Error(`${key} 必須是 object`);
   }
@@ -57,6 +61,9 @@ async function main() {
   const data = JSON.parse(readFileSync(join(root, 'web', 'lexicon.json'), 'utf8'));
   const lex = E.indexLexicon(data);
   const items = lex.items || data.tags;
+  const characterBan = new Set((data.characterBan || []).map(t => normalize(t).toLowerCase()));
+  const blockedOf = tags => tags.filter(t => MINOR_RE.test(t) || characterBan.has(t.toLowerCase()));
+  const BLOCKED = '未成年的字或禁用角色（年齡不明，墨池不畫）';
   if (command === 'groups') {
     const groups = {};
     for (const item of items) {
@@ -81,6 +88,10 @@ async function main() {
     const results = {};
     for (const word of words) {
       const q = normalize(word).toLowerCase();
+      if (blockedOf([normalize(word)]).length) {
+        results[word] = { blocked: `${word}：${BLOCKED}。不要改用英文或放進 extra。` };
+        continue;
+      }
       const scored = [];
       for (const it of items) {
         if (section && it.section !== section) continue;
@@ -108,12 +119,27 @@ async function main() {
     const values = Array.isArray(spec[key]) ? spec[key] : [spec[key]];
     if (!values.length || values.some(value => !allowed.includes(value))) throw Error(`${key} 含未知值或空清單`);
   }
-  const pins = [...new Set((spec.pins || []).map(normalize))];
+  // 份量：pins／extra 可以寫 (tag:1.2)，也可以給 weights {tag: 1.2}；跟墨池一樣夾在 0.6～1.5，成品寫成 (tag:1.2)。
+  const weights = {};
+  const bare = list => (list || []).map(raw => {
+    const { tag, weight } = E.parseWeighted(raw);
+    const t = normalize(tag);
+    if (weight !== 1) weights[t] = E.clampTagWeight(weight);
+    return t;
+  });
+  const pins = [...new Set(bare(spec.pins))];
+  const extraIn = bare(spec.extra);
+  for (const [tag, w] of Object.entries(spec.weights || {})) {
+    if (typeof w !== 'number') throw Error('weights 的值必須是數字');
+    weights[normalize(tag)] = E.clampTagWeight(w);
+  }
+  const blocked = blockedOf([...pins, ...extraIn]);
+  if (blocked.length) throw Error(`${blocked.join(', ')}：${BLOCKED}`);
   const bans = [...new Set((spec.bans || []).map(normalize))];
   const notInLexicon = pins.filter(tag => !lex.byTag.has(tag));
   // Unknown bans cannot reliably be applied by the engine; report instead of silently accepting.
   const unknownBans = bans.filter(tag => !lex.byTag.has(tag));
-  const extras = [...new Set([...(spec.extra || []).map(normalize), ...notInLexicon])];
+  const extras = [...new Set([...extraIn, ...notInLexicon])];
   let settings = E.sanitizeSettings({ ...spec, rating: spec.rating ?? 'general',
     heats: spec.heats ?? ['activity'], eras: spec.eras ?? ['modern'],
     counts: { ...defaultCounts, ...spec.counts } }, data);
@@ -154,7 +180,10 @@ async function main() {
     if (wanted.includes('adult')) tags.splice(at, 0, 'adult');
     const tailIndex = tags.findIndex(t => tail.has(t));
     tags.splice(tailIndex < 0 ? tags.length : tailIndex, 0, ...wanted.filter(t => t !== 'adult'));
-    results.push({ seed, positive: [...new Set(tags)].join(', '), tagCount: new Set(tags).size,
+    const bad = blockedOf(tags);
+    if (bad.length) throw Error(`抽出來的結果含${BLOCKED}，已停止：${bad.join(', ')}`);
+    const final = [...new Set(tags)].map(t => (weights[t] && weights[t] !== 1 ? E.formatWeighted(t, weights[t]) : t));
+    results.push({ seed, positive: final.join(', '), tagCount: final.length,
       heat: r.heat, era: r.era, people: r.people, sections: r.sections,
       droppedPins: pins.filter(t => !tags.includes(t)), conflicts: r.conflicts,
       eraClash: r.eraClash, heatClash: r.heatClash });

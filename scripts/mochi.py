@@ -24,7 +24,7 @@ DRAW_FIELDS = {
     "pins", "bans", "extra", "counts", "focus", "heats", "rating", "eras", "girl", "boy",
     "sceneMode", "width", "height", "n", "positive", "drawSeed", "seed", "samePerson",
     "drawJob", "drawCharacter", "characterSeries", "characterSameSeries", "characterFavOnly",
-    "characterFavorites", "mustDraw", "offGroups", "eraMix", "pinCompanions", "pinMutex",
+    "characterFavorites", "mustDraw", "offGroups", "eraMix", "pinCompanions", "pinMutex", "weights",
 }
 GEN_FIELDS = {"genSeed", "ckpt", "steps", "cfg", "loras", "workflowId", "pose"}
 
@@ -244,7 +244,8 @@ def generate(args, client, context):
         seed = (int(spec["genSeed"]) + index) & SEED_MAX if "genSeed" in spec else secrets.randbits(64)
         payload = {"positive": row["positive"], "width": drawn["settings"]["width"],
                    "height": drawn["settings"]["height"], "rating": drawn["settings"]["rating"],
-                   "seed": seed, "origin": "mochi"}
+                   # mcp：墨池頂欄、出圖日誌把它寫成「AI」（跟墨池 MCP 送的一樣），分得出不是自己在網頁按的。
+                   "seed": seed, "origin": "mcp"}
         payload.update({k: spec[k] for k in GEN_FIELDS - {"genSeed"} if k in spec})
         job = {"id": "codex-" + uuid.uuid4().hex, "payload": payload, "draw": row, "status": "submitted"}
         payload["job"] = job["id"]

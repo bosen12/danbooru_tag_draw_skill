@@ -11,7 +11,9 @@ Built for Codex and usable with Claude Code. No cloud image API, browser automat
 ### What it does
 
 - Searches tags in English or Chinese, with categories and metadata.
-- Draws prompts using your installed `web/engine.js`, including pinning, bans, quotas and compatibility rules.
+- Draws prompts using your installed `web/engine.js`, including pinning, bans, quotas, weights such as `(smile:1.3)` and compatibility rules.
+- Refuses words about minors and the lexicon's banned characters, in search and in drawing, instead of passing them on as free words.
+- Images it sends show up as "AI" in Mochi's top bar and generation history. If your agent has Mochi's MCP server (`mcp/` in the repo), prefer that: it also explains exclusions, uses your decks and custom cards, and fixes faces or upscales.
 - Supports prompt-only previews, draw-and-generate, and direct rendering of a finished prompt.
 - Streams generation progress and downloads the completed image.
 - Saves prompts, draw seeds, generation seeds, model settings and job IDs for repeatable follow-ups.
@@ -229,7 +231,9 @@ The engine, lexicon, models, LoRAs and generated images are not bundled here. Th
 它直接使用你本機現有的 `web/engine.js`，不另外複製一套抽牌邏輯。
 
 - 中文／英文查詞，查看分類與 metadata。
-- 釘選、禁用、分配各段張數，交給引擎處理相依與互斥。
+- 釘選、禁用、分配各段張數、份量（`(smile:1.3)`），交給引擎處理相依與互斥。
+- 未成年的字和詞庫的禁用角色，查詞、抽牌都擋，不會當成自由字接進提示詞。
+- 送出的圖在墨池頂欄和出圖日誌標成「AI」。如果你的 AI 已經接上墨池的 MCP（repo 裡的 `mcp/`），優先用它：還能解釋互斥、套用牌組與自製牌、修臉與放大。
 - 只抽不生、抽完生圖，或直接使用現成提示詞。
 - 顯示生成進度，下載成品，保存參數與工作編號。
 - 斷線接回原工作，不會自動重送另一張。

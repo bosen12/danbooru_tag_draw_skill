@@ -19,7 +19,8 @@ HTTP calls bypass environment proxy settings so local/Tailscale traffic stays di
 | Field | Values / default |
 |---|---|
 | `positive` | Finished prompt; bypasses drawing, pins, extras and draw settings. Preserves the text apart from surrounding whitespace. |
-| `pins`, `bans`, `extra` | Arrays of strings, default empty; underscores normalize to spaces in drawing mode |
+| `pins`, `bans`, `extra` | Arrays of strings, default empty; underscores normalize to spaces in drawing mode. `pins` and `extra` accept weights such as `(smile:1.3)`. Words about minors and banned characters (the lexicon's `characterBan`) are refused. |
+| `weights` | `{tag: number}`, clamped to 0.6–1.5 like Mochi; weighted tags are written as `(tag:1.3)` |
 | `counts` | Per-section quotas, default `{subject:2,feature:5,pose:4,clothing:3,env:4}` |
 | `focus` | `{section: [group, ...]}`; prioritizes skeleton slots when quota is below the section cap |
 | `rating` | `general` (default), `sensitive`, `explicit`; controls server negative and engine filtering |

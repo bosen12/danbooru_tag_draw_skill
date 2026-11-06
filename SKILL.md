@@ -12,6 +12,10 @@ license: GPL-3.0-only
 
 使用本 skill 旁的 `scripts/draw.mjs` 與 `scripts/mochi.py`。不依賴 Claude 專用工具、Bash 或第三方 Python 套件。
 抽牌直接載入現有 `web/engine.js`；生圖走墨池 HTTP API，伺服器負責 workflow、模型預設與負向提示。
+送出的圖在墨池頂欄和出圖日誌標成「AI」。
+
+如果這個 AI 已經接上墨池的 MCP（工具名稱有 `mochi_guide`、`draw_prompt`、`generate_image`），優先用 MCP：
+它多了解釋互斥、檢查一組牌、套用牌組與自製牌、修臉與放大。設定見排字匣或 Mochi repo 的 `mcp/README.md`。
 
 ## 選擇工作
 
@@ -45,6 +49,9 @@ python "$S/mochi.py" generate --spec spec.json
 
 一次搜尋重要元素，搜尋結果的 `tag` 原樣放 `pins`；不要的放 `bans`。
 查不到才放 `extra`；這些自由字不經引擎互斥／分級檢查，需自己檢查是否符合使用者要求。
+要加強或減弱某張牌，寫 `(smile:1.3)` 或 `"weights": {"smile": 1.3}`（0.6～1.5，成品寫成 `(smile:1.3)`）。
+未成年的字和禁用角色（詞庫的 `characterBan`，多半年齡不明）一律擋：搜尋會標 `blocked`，抽牌直接報錯。
+不要改用別的寫法或放進 `extra` 繞過。
 預設全年齡 `rating: general`、`heats: [activity]`、1024×1024、1 張；使用者指定優先。
 不要帶入其他 skill 的身材、服裝或鏡頭預設。
 
